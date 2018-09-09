@@ -6,6 +6,14 @@ class Cobra:
 
     def application(self, environ, start_response):
         url = environ['PATH_INFO']
+        if url.startswith("/static/"):
+            try:
+                with open(url[1:], "rb") as static_file:
+                    data = static_file.read()
+            except FileNotFoundError:
+                data = b'<h1>404 Not Found</h1>'
+            start_response('200 OK', [('Content-Type', 'text/html')])
+            return [data]
         for rule in self.rules:
             if rule['path'] == url:
                 resp = rule['func']()
