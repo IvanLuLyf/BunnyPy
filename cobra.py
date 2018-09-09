@@ -4,6 +4,10 @@ from wsgiref.simple_server import make_server
 class Cobra:
     rules = []
 
+    def __init__(self, host='127.0.0.1', port=8000):
+        self.host = host
+        self.port = port
+
     def application(self, environ, start_response):
         url = environ['PATH_INFO']
         if url.startswith("/static/"):
@@ -30,6 +34,7 @@ class Cobra:
         return decorator
 
     def run(self):
-        httpd = make_server('', 8000, self.application)
-        print("Serving HTTP on port 8000...")
+        httpd = make_server(self.host, self.port, self.application)
+        print("Serving HTTP on port {0}...".format(self.port))
+        print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.host, self.port))
         httpd.serve_forever()
