@@ -76,3 +76,30 @@ class Cobra:
         print("Serving HTTP on port {0}...".format(self.__port))
         print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.__host, self.__port))
         httpd.serve_forever()
+
+    def fetch(self, sql, param=[]):
+        cursor = self.__connection.cursor()
+        cursor.execute(sql, param)
+        result = cursor.fetchone()
+        cursor.close()
+        return result
+
+    def fetch_all(self, sql, param=[]):
+        cursor = self.__connection.cursor()
+        cursor.execute(sql, param)
+        result = cursor.fetchall()
+        cursor.close()
+        return result
+
+    def select(self, sql, fetch_all=False):
+        def new_select(*args):
+            param = list(args)
+            if fetch_all:
+                return self.fetch_all(sql, param)
+            else:
+                return self.fetch(sql, param)
+
+        def decorator(func):
+            return new_select
+
+        return decorator
