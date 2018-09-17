@@ -7,11 +7,13 @@ class Cobra:
     __rules = []
     __queries = {}
     __request_bodies = {}
+    __connection = None
     request_method = 'GET'
 
-    def __init__(self, host='127.0.0.1', port=8000):
+    def __init__(self, host='127.0.0.1', port=8000, connection=None):
         self.__host = host
         self.__port = port
+        self.__connection = connection
 
     def __parse_input(self, environ):
         try:
@@ -19,7 +21,7 @@ class Cobra:
         except ValueError:
             content_length = 0
         request_body = environ['wsgi.input'].read(content_length)
-        self.__request_bodies = parse_qs(request_body.decode('utf-8'),)
+        self.__request_bodies = parse_qs(request_body.decode('utf-8'), )
 
     def request(self, name, method='GET', multi_param=False):
         if method == 'GET':
