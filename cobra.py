@@ -91,6 +91,16 @@ class Cobra:
         cursor.close()
         return result
 
+    def insert_into(self, table, data):
+        keys = list(data.keys())
+        values = list(data.values())
+        sql_string = "Insert Into %s (%s) Values(%s)" % (
+            table, ','.join(keys), ','.join(['?' for i in range(len(keys))]))
+        cursor = self.__connection.cursor()
+        cursor.execute(sql_string, values)
+        self.__connection.commit()
+        cursor.close()
+
     def select(self, sql, fetch_all=False):
         def new_select(*args):
             param = list(args)
@@ -101,5 +111,25 @@ class Cobra:
 
         def decorator(func):
             return new_select
+
+        return decorator
+
+    def insert(self, sql=None, table=None):
+        def new_insert(*args):
+            cursor = self.__connection.cursor()
+            cursor.execute(sql, list(args))
+            self.__connection.commit()
+            cursor.close()
+
+        def new_insert_with_table(data):
+            return self.insert_into(table, data)
+
+        def decorator(func):
+            if table is not None:
+                return new_insert_with_table
+            elif sql is not None:
+                return new_insert
+            else:
+                return None
 
         return decorator
