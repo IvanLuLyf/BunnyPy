@@ -18,7 +18,6 @@ class Cobra:
             content_length = int(environ['CONTENT_LENGTH'])
         except ValueError:
             content_length = 0
-        print(environ)
         request_body = environ['wsgi.input'].read(content_length)
         self.__request_bodies = parse_qs(request_body.decode('utf-8'),)
 
