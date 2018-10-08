@@ -101,6 +101,36 @@ class Cobra:
         self.__connection.commit()
         cursor.close()
 
+    def update_by(self, data, table, where=None, param=None):
+        if param is None:
+            param = []
+        if where is not None:
+            where = ' Where ' + where
+        cursor = self.__connection.cursor()
+        keys = list(data.keys())
+        values = list(data.values())
+        sets = ','.join([keys[i] + '=?' for i in range(len(keys))])
+        sql_string = "Update %s Set %s %s" % (table, sets, where)
+        values.extend(param)
+        cursor.execute(sql_string, values)
+        result = cursor.rowcount
+        self.__connection.commit()
+        cursor.close()
+        return result
+
+    def delete_by(self, table, where=None, param=None):
+        if param is None:
+            param = []
+        if where is not None:
+            where = ' Where ' + where
+        cursor = self.__connection.cursor()
+        sql_string = "delete from %s %s" % (table, where)
+        cursor.execute(sql_string, param)
+        result = cursor.rowcount
+        self.__connection.commit()
+        cursor.close()
+        return result
+
     def select(self, sql, fetch_all=False):
         def new_select(*args):
             param = list(args)
