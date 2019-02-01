@@ -274,7 +274,6 @@ class Cobra:
             try:
                 self.data_context.update(self.context)
                 exec(str(self.code_builder), self.data_context)
-                print(self.code_builder)
                 result = self.data_context['__cobra_temp']()
                 return result
             except NameError as e:
