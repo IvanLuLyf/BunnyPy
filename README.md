@@ -45,3 +45,34 @@ def db():
     </form>
     '''
 ```
+
+# Cobra Data Model
+```python
+
+from cobra import Cobra
+import sqlite3 #you can also using database driver that can using Cursor
+
+app = Cobra(connection=sqlite3.connect('test.db'))
+
+# decorate class
+@app.data
+class User:
+    def __init__(self, name=None):
+        self.name = name
+
+@app.route("/users")
+def users():
+    data = User.get_all()
+    l = '<br>'.join([str(d) for d in data])
+    return l + '''
+    <form action="users" method="POST">
+        <input type="text" name="name">
+        <input type="submit" value="Submit">
+    </form>
+    '''
+
+
+if __name__ == '__main__':
+    app.run()
+
+```
