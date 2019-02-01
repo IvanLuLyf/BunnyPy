@@ -76,3 +76,34 @@ if __name__ == '__main__':
     app.run()
 
 ```
+
+# Cobra Template
+> temp.html
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Template</title>
+</head>
+<body>
+Output: {{ msg }}
+</body>
+</html>
+```
+> Python code
+```python
+
+from cobra import Cobra
+
+app = Cobra()
+
+@app.route("/temp")
+def temp():
+    return app.render('temp.html',{"msg":"Hello World"})
+
+
+if __name__ == '__main__':
+    app.run()
+
+```
