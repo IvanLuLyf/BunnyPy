@@ -81,18 +81,27 @@ class Cobra:
         print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.__host, self.__port))
         httpd.serve_forever()
 
-    def fetch(self, sql, param=[]):
+    def fetch(self, sql, param=None):
+        if param is None:
+            param = []
         cursor = self.__connection.cursor()
         cursor.execute(sql, param)
-        result = cursor.fetchone()
+        columns = [desc[0] for desc in cursor.description]
+        row = cursor.fetchone()
         cursor.close()
-        return result
+        return dict(zip(columns, row))
 
-    def fetch_all(self, sql, param=[]):
+    def fetch_all(self, sql, param=None):
+        if param is None:
+            param = []
         cursor = self.__connection.cursor()
         cursor.execute(sql, param)
-        result = cursor.fetchall()
+        columns = [desc[0] for desc in cursor.description]
+        values = cursor.fetchall()
         cursor.close()
+        result = []
+        for row in values:
+            result.append(dict(zip(columns, row)))
         return result
 
     def insert_into(self, table, data):
@@ -167,6 +176,42 @@ class Cobra:
                 return None
 
         return decorator
+
+    def data(self, model):
+        __cobra__ = self
+
+        class DataModel(model):
+
+            def __init__(self, *args, **kws):
+                model.__init__(self, *args, **kws)
+                for k, v in vars(self).items():
+                    print("%s = %s" % (k, v))
+
+            def __str__(self):
+                return str(vars(self))
+
+            @staticmethod
+            def get(param=None):
+                if param is None:
+                    param = []
+                data = __cobra__.fetch("select * from " + str.lower(model.__name__), param)
+                m = DataModel()
+                m.__dict__.update(data)
+                return m
+
+            @staticmethod
+            def get_all(param=None):
+                if param is None:
+                    param = []
+                result = []
+                data = __cobra__.fetch_all("select * from " + str.lower(model.__name__), param)
+                for d in data:
+                    m = DataModel()
+                    m.__dict__.update(d)
+                    result.append(m)
+                return result
+
+        return DataModel
 
     class CodeBuilder:
         INDENT_STEP = 4
