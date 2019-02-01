@@ -1,3 +1,4 @@
+import re
 from wsgiref.simple_server import make_server
 from urllib.parse import parse_qs, unquote
 from html import escape
@@ -71,6 +72,14 @@ class Cobra:
 
         return decorator
 
+    def render(self, html, context):
+        try:
+            with open('template/' + html, "r", encoding='utf-8') as template_file:
+                data = template_file.read()
+                return self.Template(data).render(context)
+        except FileNotFoundError:
+            return '<h1>Template Not Found</h1>'
+
     def run(self):
         httpd = make_server(self.__host, self.__port, self.__application)
         print("Serving HTTP on port {0}...".format(self.__port))
@@ -94,7 +103,7 @@ class Cobra:
     def insert_into(self, table, data):
         keys = list(data.keys())
         values = list(data.values())
-        sql_string = "Insert Into %s (%s) Values(%s)" % (
+        sql_string = "insert into %s (%s) values(%s)" % (
             table, ','.join(keys), ','.join(['?' for i in range(len(keys))]))
         cursor = self.__connection.cursor()
         cursor.execute(sql_string, values)
@@ -110,7 +119,7 @@ class Cobra:
         keys = list(data.keys())
         values = list(data.values())
         sets = ','.join([keys[i] + '=?' for i in range(len(keys))])
-        sql_string = "Update %s Set %s %s" % (table, sets, where)
+        sql_string = "update %s set %s %s" % (table, sets, where)
         values.extend(param)
         cursor.execute(sql_string, values)
         result = cursor.rowcount
@@ -163,3 +172,112 @@ class Cobra:
                 return None
 
         return decorator
+
+    class CodeBuilder:
+        INDENT_STEP = 4
+
+        def __init__(self):
+            self.indent = 0
+            self.lines = []
+
+        def forward(self):
+            self.indent += self.INDENT_STEP
+
+        def backward(self):
+            self.indent -= self.INDENT_STEP
+
+        def add(self, code):
+            self.lines.append(code)
+
+        def add_line(self, code):
+            self.lines.append(' ' * self.indent + code)
+
+        def __str__(self):
+            return '\n'.join(map(str, self.lines))
+
+    class Template:
+        def __init__(self, raw_text):
+            self.raw_text = raw_text
+            self.default_context = {}
+            self.func_name = '__cobra_function'
+            self.result_var = '__cobra_result'
+            self.code_builder = code_builder = Cobra.CodeBuilder()
+            self.buffered = []
+
+            self.re_variable = re.compile(r'\{\{ .*? \}\}')
+            self.re_comment = re.compile(r'\{# .*? #\}')
+            self.re_tag = re.compile(r'\{% .*? %\}')
+            self.re_tokens = re.compile(r'''(
+                (?:\{\{ .*? \}\})
+                |(?:\{\# .*? \#\})
+                |(?:\{% .*? %\})
+            )''', re.X)
+
+            code_builder.add_line('def {}():'.format(self.func_name))
+            code_builder.forward()
+            code_builder.add_line('{} = []'.format(self.result_var))
+            self._parse_text()
+
+            self.flush_buffer()
+            code_builder.add_line('return "".join({})'.format(self.result_var))
+            code_builder.backward()
+
+        def _parse_text(self):
+            tokens = self.re_tokens.split(self.raw_text)
+            handlers = (
+                (self.re_variable.match, self._handle_variable),
+                (self.re_tag.match, self._handle_tag),
+                (self.re_comment.match, self._handle_comment),
+            )
+            default_handler = self._handle_string
+
+            for token in tokens:
+                for match, handler in handlers:
+                    if match(token):
+                        handler(token)
+                        break
+                else:
+                    default_handler(token)
+
+        def _handle_variable(self, token):
+            variable = token.strip('{} ')
+            self.buffered.append('str({})'.format(variable))
+
+        def _handle_comment(self, token):
+            pass
+
+        def _handle_string(self, token):
+            self.buffered.append('{}'.format(repr(token)))
+
+        def _handle_tag(self, token):
+            self.flush_buffer()
+            tag = token.strip('{%} ')
+            tag_name = tag.split()[0]
+            self._handle_statement(tag, tag_name)
+
+        def _handle_statement(self, tag, tag_name):
+            if tag_name in ('if', 'elif', 'else', 'for'):
+                if tag_name in ('elif', 'else'):
+                    self.code_builder.backward()
+                self.code_builder.add_line('{}:'.format(tag))
+                self.code_builder.forward()
+            elif tag_name in ('break',):
+                self.code_builder.add_line(tag)
+            elif tag_name in ('endif', 'endfor'):
+                self.code_builder.backward()
+
+        def flush_buffer(self):
+            line = '{0}.extend([{1}])'.format(
+                self.result_var, ','.join(self.buffered)
+            )
+            self.code_builder.add_line(line)
+            self.buffered = []
+
+        def render(self, context=None):
+            namespace = {}
+            namespace.update(self.default_context)
+            if context:
+                namespace.update(context)
+            exec(str(self.code_builder), namespace)
+            result = namespace[self.func_name]()
+            return result
