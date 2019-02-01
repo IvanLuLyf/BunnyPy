@@ -5,16 +5,16 @@ from html import escape
 
 
 class Cobra:
-    __rules = []
-    __queries = {}
-    __request_bodies = {}
-    __connection = None
+    __rules__ = []
+    __queries__ = {}
+    __request_bodies__ = {}
+    __connection__ = None
     request_method = 'GET'
 
     def __init__(self, host='127.0.0.1', port=8000, connection=None):
         self.__host = host
         self.__port = port
-        self.__connection = connection
+        self.__connection__ = connection
 
     def __parse_input(self, environ):
         try:
@@ -22,22 +22,22 @@ class Cobra:
         except ValueError:
             content_length = 0
         request_body = environ['wsgi.input'].read(content_length)
-        self.__request_bodies = parse_qs(request_body.decode('utf-8'), )
+        self.__request_bodies__ = parse_qs(request_body.decode('utf-8'), )
 
     def request(self, name, method='GET', multi_param=False):
         if method == 'GET':
             if multi_param:
-                data_arr = self.__queries.get(name, [])
+                data_arr = self.__queries__.get(name, [])
                 return [escape(data) for data in data_arr]
-            data = self.__queries.get(name, [None])[0]
+            data = self.__queries__.get(name, [None])[0]
             if data:
                 return escape(data)
             return None
         else:
             if multi_param:
-                data_arr = self.__request_bodies.get(name, [])
+                data_arr = self.__request_bodies__.get(name, [])
                 return [escape(data) for data in data_arr]
-            data = self.__request_bodies.get(name, [None])[0]
+            data = self.__request_bodies__.get(name, [None])[0]
             if data:
                 return escape(unquote(data))
             return None
@@ -48,7 +48,7 @@ class Cobra:
         self.request_method = environ['REQUEST_METHOD']
         if self.request_method != 'GET':
             self.__parse_input(environ)
-        self.__queries = parse_qs(query_string)
+        self.__queries__ = parse_qs(query_string)
         if url.startswith("/static/"):
             try:
                 with open(url[1:], "rb") as static_file:
@@ -57,7 +57,7 @@ class Cobra:
                 data = b'<h1>404 Not Found</h1>'
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [data]
-        for rule in self.__rules:
+        for rule in self.__rules__:
             if rule['path'] == url:
                 resp = rule['func']()
                 start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
@@ -67,7 +67,7 @@ class Cobra:
 
     def route(self, path, **options):
         def decorator(func):
-            self.__rules.append({'path': path, 'func': func})
+            self.__rules__.append({'path': path, 'func': func})
             return func
 
         return decorator
@@ -84,7 +84,7 @@ class Cobra:
     def fetch(self, sql, param=None):
         if param is None:
             param = []
-        cursor = self.__connection.cursor()
+        cursor = self.__connection__.cursor()
         cursor.execute(sql, param)
         columns = [desc[0] for desc in cursor.description]
         row = cursor.fetchone()
@@ -94,7 +94,7 @@ class Cobra:
     def fetch_all(self, sql, param=None):
         if param is None:
             param = []
-        cursor = self.__connection.cursor()
+        cursor = self.__connection__.cursor()
         cursor.execute(sql, param)
         columns = [desc[0] for desc in cursor.description]
         values = cursor.fetchall()
@@ -109,9 +109,9 @@ class Cobra:
         values = list(data.values())
         sql_string = "insert into %s (%s) values(%s)" % (
             table, ','.join(keys), ','.join(['?' for i in range(len(keys))]))
-        cursor = self.__connection.cursor()
+        cursor = self.__connection__.cursor()
         cursor.execute(sql_string, values)
-        self.__connection.commit()
+        self.__connection__.commit()
         cursor.close()
 
     def update_by(self, data, table, where=None, param=None):
@@ -119,7 +119,7 @@ class Cobra:
             param = []
         if where is not None:
             where = ' Where ' + where
-        cursor = self.__connection.cursor()
+        cursor = self.__connection__.cursor()
         keys = list(data.keys())
         values = list(data.values())
         sets = ','.join([keys[i] + '=?' for i in range(len(keys))])
@@ -127,7 +127,7 @@ class Cobra:
         values.extend(param)
         cursor.execute(sql_string, values)
         result = cursor.rowcount
-        self.__connection.commit()
+        self.__connection__.commit()
         cursor.close()
         return result
 
@@ -136,11 +136,11 @@ class Cobra:
             param = []
         if where is not None:
             where = ' Where ' + where
-        cursor = self.__connection.cursor()
+        cursor = self.__connection__.cursor()
         sql_string = "delete from %s %s" % (table, where)
         cursor.execute(sql_string, param)
         result = cursor.rowcount
-        self.__connection.commit()
+        self.__connection__.commit()
         cursor.close()
         return result
 
@@ -159,9 +159,9 @@ class Cobra:
 
     def insert(self, sql=None, table=None):
         def new_insert(*args):
-            cursor = self.__connection.cursor()
+            cursor = self.__connection__.cursor()
             cursor.execute(sql, list(args))
-            self.__connection.commit()
+            self.__connection__.commit()
             cursor.close()
 
         def new_insert_with_table(data):
@@ -184,11 +184,12 @@ class Cobra:
 
             def __init__(self, *args, **kws):
                 model.__init__(self, *args, **kws)
-                for k, v in vars(self).items():
-                    print("%s = %s" % (k, v))
 
             def __str__(self):
                 return str(vars(self))
+
+            def insert(self):
+                return __cobra__.insert_into(str.lower(model.__name__), vars(self))
 
             @staticmethod
             def get(param=None):
