@@ -72,13 +72,8 @@ class Cobra:
 
         return decorator
 
-    def render(self, html, context):
-        try:
-            with open('template/' + html, "r", encoding='utf-8') as template_file:
-                data = template_file.read()
-                return self.Template(data).render(context)
-        except FileNotFoundError:
-            return '<h1>Template Not Found</h1>'
+    def render(self, view, context=None):
+        return self.TemplateRender(view, context).render()
 
     def run(self):
         httpd = make_server(self.__host, self.__port, self.__application)
@@ -195,31 +190,34 @@ class Cobra:
         def __str__(self):
             return '\n'.join(map(str, self.lines))
 
-    class Template:
-        def __init__(self, raw_text):
-            self.raw_text = raw_text
-            self.default_context = {}
-            self.func_name = '__cobra_function'
-            self.result_var = '__cobra_result'
+    class TemplateRender:
+        def __init__(self, view, context=None):
+            try:
+                with open("template/" + view, "r", encoding='utf-8') as template_file:
+                    self.raw_text = template_file.read()
+            except FileNotFoundError:
+                self.raw_text = '<h1>Template' + view + ' Not Found</h1>'
+            self.context = context or {}
+            self.data_context = {}
             self.code_builder = code_builder = Cobra.CodeBuilder()
             self.buffered = []
 
-            self.re_variable = re.compile(r'\{\{ .*? \}\}')
-            self.re_comment = re.compile(r'\{# .*? #\}')
-            self.re_tag = re.compile(r'\{% .*? %\}')
+            self.re_variable = re.compile(r'{{ .*? \}\}')
+            self.re_comment = re.compile(r'{# .*? #\}')
+            self.re_tag = re.compile(r'{% .*? %\}')
             self.re_tokens = re.compile(r'''(
-                (?:\{\{ .*? \}\})
-                |(?:\{\# .*? \#\})
-                |(?:\{% .*? %\})
+                (?:{{ .*? \}\})
+                |(?:{\# .*? \#\})
+                |(?:{% .*? %\})
             )''', re.X)
 
-            code_builder.add_line('def {}():'.format(self.func_name))
+            code_builder.add_line('def __cobra_temp():')
             code_builder.forward()
-            code_builder.add_line('{} = []'.format(self.result_var))
+            code_builder.add_line('__cobra_ret = []')
             self._parse_text()
 
             self.flush_buffer()
-            code_builder.add_line('return "".join({})'.format(self.result_var))
+            code_builder.add_line('return "".join(__cobra_ret)')
             code_builder.backward()
 
         def _parse_text(self):
@@ -241,6 +239,7 @@ class Cobra:
 
         def _handle_variable(self, token):
             variable = token.strip('{} ')
+            self.data_context[variable] = ''
             self.buffered.append('str({})'.format(variable))
 
         def _handle_comment(self, token):
@@ -267,17 +266,16 @@ class Cobra:
                 self.code_builder.backward()
 
         def flush_buffer(self):
-            line = '{0}.extend([{1}])'.format(
-                self.result_var, ','.join(self.buffered)
-            )
+            line = '__cobra_ret.extend([{0}])'.format(','.join(self.buffered))
             self.code_builder.add_line(line)
             self.buffered = []
 
-        def render(self, context=None):
-            namespace = {}
-            namespace.update(self.default_context)
-            if context:
-                namespace.update(context)
-            exec(str(self.code_builder), namespace)
-            result = namespace[self.func_name]()
-            return result
+        def render(self):
+            try:
+                self.data_context.update(self.context)
+                exec(str(self.code_builder), self.data_context)
+                print(self.code_builder)
+                result = self.data_context['__cobra_temp']()
+                return result
+            except NameError as e:
+                return str(e)
