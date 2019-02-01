@@ -12,8 +12,8 @@ class Cobra:
     request_method = 'GET'
 
     def __init__(self, host='127.0.0.1', port=8000, connection=None):
-        self.__host = host
-        self.__port = port
+        self.__host__ = host
+        self.__port__ = port
         self.__connection__ = connection
 
     def __parse_input(self, environ):
@@ -76,9 +76,9 @@ class Cobra:
         return self.TemplateRender(view, context).render()
 
     def run(self):
-        httpd = make_server(self.__host, self.__port, self.__application)
-        print("Serving HTTP on port {0}...".format(self.__port))
-        print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.__host, self.__port))
+        httpd = make_server(self.__host__, self.__port__, self.__application)
+        print("Serving HTTP on port {0}...".format(self.__port__))
+        print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.__host__, self.__port__))
         httpd.serve_forever()
 
     def fetch(self, sql, param=None):
