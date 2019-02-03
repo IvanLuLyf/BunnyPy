@@ -17,6 +17,10 @@ class Cobra:
         self.__connection__ = connection
         self.__database_type__ = database_type
 
+    def __erase_query(self):
+        self.__queries__ = {}
+        self.__request_bodies__ = {}
+
     def __parse_input(self, environ):
         try:
             content_length = int(environ['CONTENT_LENGTH'])
@@ -57,13 +61,16 @@ class Cobra:
             except FileNotFoundError:
                 data = b'<h1>404 Not Found</h1>'
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+            self.__erase_query()
             return [data]
         for rule in self.__rules__:
             if rule['path'] == url:
                 resp = rule['func']()
                 start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+                self.__erase_query()
                 return [resp.encode('utf-8')]
         start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+        self.__erase_query()
         return [b'<h1>Welcome to use cobra.py!</h1>', b'<p>cobra.py is successfully working.</p>']
 
     def route(self, path, **options):
