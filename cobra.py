@@ -11,10 +11,11 @@ class Cobra:
     __connection__ = None
     request_method = 'GET'
 
-    def __init__(self, host='127.0.0.1', port=8000, connection=None):
+    def __init__(self, host='127.0.0.1', port=8000, connection=None, database_type='sqlite'):
         self.__host__ = host
         self.__port__ = port
         self.__connection__ = connection
+        self.__database_type__ = database_type
 
     def __parse_input(self, environ):
         try:
@@ -190,6 +191,39 @@ class Cobra:
 
             def insert(self):
                 return __cobra__.insert_into(str.lower(model.__name__), vars(self))
+
+            @staticmethod
+            def make_table():
+                __structure__ = []
+                primary_keys = ''
+                if self.__database_type__ == 'mysql':
+                    for v in model.__dict__:
+                        if not str.startswith(v, '__'):
+                            column = v + " " + model.__dict__[v]
+                            if v == model.__ai__:
+                                column += ' auto_increment '
+                            __structure__.append(column)
+                        if model.__pk__:
+                            primary_keys = ',primary key(%s)' % (','.join(model.__pk__))
+                    sql = "create table %s (%s %s)" % (str.lower(model.__name__), ','.join(__structure__), primary_keys)
+                else:
+                    for v in model.__dict__:
+                        if not str.startswith(v, '__'):
+                            column = v + " " + model.__dict__[v]
+                            if v in model.__pk__:
+                                column += ' primary key '
+                            if v == model.__ai__:
+                                column += ' autoincrement '
+                            __structure__.append(column)
+                    sql = "create table %s (%s)" % (str.lower(model.__name__), ','.join(__structure__))
+                cursor = self.__connection__.cursor()
+                try:
+                    cursor.execute(sql)
+                    cursor.close()
+                    return True
+                except Exception:
+                    cursor.close()
+                    return False
 
             @staticmethod
             def get(param=None):

@@ -6,6 +6,11 @@ app = Cobra(connection=sqlite3.connect('test.db'))
 
 @app.data
 class User:
+    __pk__ = ['id']
+    __ai__ = 'id'
+    id = 'integer not null'
+    name = 'text not null'
+
     def __init__(self, name=None):
         self.name = name
 
@@ -13,6 +18,14 @@ class User:
 @app.route('/index')
 def index():
     return "<h1>Hello World</h1>"
+
+
+@app.route('/install')
+def install():
+    if User.make_table():
+        return "Install OK"
+    else:
+        return "Install Failed"
 
 
 @app.route('/hi')

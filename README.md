@@ -57,8 +57,18 @@ app = Cobra(connection=sqlite3.connect('test.db'))
 # decorate class
 @app.data
 class User:
+    __pk__ = ['id']
+    __ai__ = 'id'
+    id = 'integer not null'
+    name = 'text not null'
+
     def __init__(self, name=None):
         self.name = name
+
+# You can use User.make_table() to create a table
+# You can use User("Test").insert() to add a new row into table
+# You can use User.get(name = 'test') to get a row that fit the condition
+# You can use User.get_all(name = 'test') to get any rows that fit the condition
 
 @app.route("/users")
 def users():
