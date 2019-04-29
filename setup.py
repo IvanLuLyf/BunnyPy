@@ -5,7 +5,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='BunnyPy',
-    version='0.0.1',
+    version='0.0.2',
     description='Lightweight Python Web Framework',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
