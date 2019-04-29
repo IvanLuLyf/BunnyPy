@@ -1,0 +1,16 @@
+*.pyc
+*.pyo
+*.db
+*.sqlite3
+*.log
+*.mo
+._*
+*.*~
+
+dist/
+build/
+MANIFEST
+BunnyPy.egg-info/
+
+.idea/
+venv/
