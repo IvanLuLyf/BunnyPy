@@ -2,18 +2,18 @@ from wsgiref.simple_server import make_server
 
 
 class Bunny:
-    rules = []
+    controllers = {}
 
     def handler(self, environ, start_response):
-        if len(self.rules) > 0:
-            url = environ['PATH_INFO']
-            for rule in self.rules:
-                if rule['path'] == url:
-                    response = rule['func']()
-                    start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
-                    return [response.encode('utf-8')]
+        url_array = environ['PATH_INFO'].split('/')
+        if len(self.controllers.keys()) > 0:
+            if len(url_array) > 2:
+                action = url_array[2].lower()
+            else:
+                action = 'index'
+            response = self.__call_action__(url_array[1], action)
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
-            return ['Page Not Found'.encode('utf-8')]
+            return [response.encode('utf-8')]
         else:
             default_html = '''
 <h1>Welcome to <a href="https://github.com/IvanLuLyf/BunnyPy">BunnyPy</a>!</h1>
@@ -28,16 +28,36 @@ class Bunny:
         self.__connection__ = connection
         self.__database_type__ = database_type
 
-    def route(self, path, **options):
-        def decorator(func):
-            self.rules.append({'path': path, 'func': func})
-            return func
-
-        return decorator
+    def controller(self, ctrl_cls):
+        if isinstance(ctrl_cls, type):
+            new_ctrl = ctrl_cls()
+            mod_name = new_ctrl.__class__.__name__[0:-10].lower()
+            self.controllers[mod_name] = new_ctrl
+        if ctrl_cls.__class__.__name__ == 'module':
+            mod_name = ctrl_cls.__name__[11:-10].lower()
+            self.controllers[mod_name] = ctrl_cls
+        if ctrl_cls.__class__.__name__.endswith('Controller'):
+            mod_name = ctrl_cls.__class__.__name__[0:-10].lower()
+            self.controllers[mod_name] = ctrl_cls
 
     def run(self):
         httpd = make_server(self.__host__, self.__port__, self.handler)
-        print('BunnyPy v0.0.2')
+        print('BunnyPy v0.0.3')
         print("Serving HTTP on port {0}...".format(self.__port__))
         print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.__host__, self.__port__))
         httpd.serve_forever()
+
+    def __call_action__(self, name, action):
+        mod = self.controllers.get(name)
+        if mod is not None:
+            ac = getattr(mod, 'ac_' + action, None)
+            if ac is not None:
+                return ac()
+            else:
+                ac_other = getattr(mod, 'other', None)
+                if ac_other is not None:
+                    return ac_other()
+                else:
+                    return 'Action {0} Not Exists'.format(action)
+        else:
+            return 'Mod {0} Not Exists'.format(name)
