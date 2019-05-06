@@ -42,9 +42,18 @@ class Bunny:
 
     def run(self):
         httpd = make_server(self.__host__, self.__port__, self.handler)
-        print('BunnyPy v0.0.3')
-        print("Serving HTTP on port {0}...".format(self.__port__))
-        print("Running on http://{0}:{1}/ (Press CTRL+C to quit)".format(self.__host__, self.__port__))
+        information = '''
+                                 
+ _____                 _____     
+| __  |_ _ ___ ___ _ _|  _  |_ _ 
+| __ -| | |   |   | | |   __| | |
+|_____|___|_|_|_|_|_  |__|  |_  |
+                  |___|     |___|
+BunnyPy v0.0.4
+Serving HTTP on port {1}...
+Running on http://{0}:{1}/ (Press CTRL+C to quit)
+'''
+        print(information.format(self.__host__, self.__port__))
         httpd.serve_forever()
 
     def __call_action__(self, name, action):
