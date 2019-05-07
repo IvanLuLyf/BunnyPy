@@ -16,7 +16,7 @@ pip install bunnypy
 > hello.py
 
 ```python
-from bunny import Bunny
+from bunnypy import Bunny
 
 app = Bunny()
 

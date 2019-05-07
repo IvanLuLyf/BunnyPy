@@ -12,6 +12,15 @@ class Bunny:
 
     def handler(self, environ, start_response):
         url_array = environ['PATH_INFO'].split('/')
+        if url_array[1] == 'static':
+            try:
+                with open(environ['PATH_INFO'][1:], "rb") as static_file:
+                    data = static_file.read()
+            except FileNotFoundError:
+                data = b'<h1>404 Not Found</h1>'
+            start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+            self.__erase_query__()
+            return [data]
         if url_array[1] == '':
             url_array[1] = 'index'
         if len(url_array) > 3:
@@ -65,7 +74,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.0.6
+BunnyPy v0.0.7
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
@@ -77,7 +86,7 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             return self.__path_data__[index]
         return default_val
 
-    def request(self, name, method='GET', multi_param=False):
+    def request(self, name, method='GET', default_val=None, multi_param=False):
         if method == 'GET':
             if multi_param:
                 data_arr = self.__queries__.get(name, [])
@@ -85,7 +94,7 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             data = self.__queries__.get(name, [None])[0]
             if data:
                 return escape(data)
-            return None
+            return default_val
         else:
             if multi_param:
                 data_arr = self.__request_bodies__.get(name, [])
@@ -93,7 +102,7 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             data = self.__request_bodies__.get(name, [None])[0]
             if data:
                 return escape(unquote(data))
-            return None
+            return default_val
 
     def __call_action__(self, name, action):
         mod = self.__controllers__.get(name)
