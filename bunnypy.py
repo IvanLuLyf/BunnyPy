@@ -65,7 +65,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.0.5
+BunnyPy v0.0.6
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''

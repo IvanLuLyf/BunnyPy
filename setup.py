@@ -5,15 +5,15 @@ from setuptools import setup, find_packages
 
 setup(
     name='BunnyPy',
-    version='0.0.5',
+    version='0.0.6',
     description='Lightweight Python Web Framework',
     long_description=open('README.md').read(),
     long_description_content_type="text/markdown",
     author='IvanLuLyf',
     author_email='me@ivanlu.cn',
     url='https://github.com/ivanlulyf/bunnypy',
-    py_modules=['bunny'],
-    scripts=['bunny.py'],
+    py_modules=['bunnypy'],
+    scripts=['bunnypy.py'],
     license='MIT',
     platforms='any',
     classifiers=['Operating System :: OS Independent',
