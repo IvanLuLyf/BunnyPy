@@ -1,3 +1,4 @@
+import re
 from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
@@ -47,11 +48,14 @@ class Bunny:
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [default_html.encode('utf-8')]
 
-    def __init__(self, host='127.0.0.1', port=8000, connection=None, database_type='sqlite'):
+    def __init__(self, host='127.0.0.1', port=8000, database=None):
+        db_config = {'connection': None, 'type': 'sqlite', 'prefix': ''}
+        db_config.update(database)
         self.__host__ = host
         self.__port__ = port
-        self.__connection__ = connection
-        self.__database_type__ = database_type
+        self.__connection__ = db_config['connection']
+        self.__database_type__ = db_config['type']
+        self.__database_prefix__ = db_config['prefix']
 
     def controller(self, ctrl_cls):
         if isinstance(ctrl_cls, type):
@@ -74,7 +78,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.0.7
+BunnyPy v0.0.8
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
@@ -131,3 +135,55 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             content_length = 0
         request_body = environ['wsgi.input'].read(content_length)
         self.__request_bodies__ = parse_qs(request_body.decode('utf-8'), )
+
+    def data(self, model):
+        __bunny__ = self
+
+        class DataModel(model):
+            def __init__(self, *args, **kws):
+                model.__init__(self, *args, **kws)
+
+            def __str__(self):
+                return str(vars(self))
+
+            def test(self):
+                print(self.__table_name__())
+
+            @staticmethod
+            def __table_name__():
+                if '__table__' in model.__dict__:
+                    return model.__table__
+                model_name = model.__name__
+                if model_name.endswith('Model'):
+                    model_name = model_name[0:-5]
+                p = re.compile(r'([a-z]|\d)([A-Z])')
+                return __bunny__.__database_prefix__ + re.sub(p, r'\1_\2', model_name).lower()
+
+            @staticmethod
+            def create():
+                __structure__ = []
+                primary_keys = ''
+                table_name = DataModel.__table_name__()
+                if self.__database_type__ == 'mysql':
+                    for v in model.__dict__:
+                        if not str.startswith(v, '__'):
+                            column = v + " " + model.__dict__[v]
+                            if '__ai__' in model.__dict__ and v == model.__ai__:
+                                column += ' auto_increment '
+                            __structure__.append(column)
+                        if '__pk__' in model.__dict__:
+                            primary_keys = ',primary key(%s)' % (','.join(model.__pk__))
+                    sql = "create table %s (%s %s)" % (table_name, ','.join(__structure__), primary_keys)
+                else:
+                    for v in model.__dict__:
+                        if not str.startswith(v, '__'):
+                            column = v + " " + model.__dict__[v]
+                            if '__pk__' in model.__dict__ and v in model.__pk__:
+                                column += ' primary key '
+                            if '__ai__' in model.__dict__ and v == model.__ai__:
+                                column += ' autoincrement '
+                            __structure__.append(column)
+                    sql = "create table %s (%s)" % (table_name, ','.join(__structure__))
+                print(sql)
+
+        return DataModel
