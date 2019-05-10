@@ -80,7 +80,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.1.0
+BunnyPy v0.1.1
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
@@ -103,9 +103,9 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             return default_val
         else:
             if multi_param:
-                data_arr = self.__request_bodies__.get(name, [])
+                data_arr = self.__request_body__.get(name, [])
                 return [escape(data) for data in data_arr]
-            data = self.__request_bodies__.get(name, [None])[0]
+            data = self.__request_body__.get(name, [None])[0]
             if data:
                 return escape(unquote(data))
             return default_val
@@ -127,7 +127,7 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
 
     def __erase_query__(self):
         self.__queries__ = {}
-        self.__request_bodies__ = {}
+        self.__request_body__ = {}
         self.__path_data__ = []
 
     def __parse_input__(self, environ):
@@ -136,7 +136,7 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
         except ValueError:
             content_length = 0
         request_body = environ['wsgi.input'].read(content_length)
-        self.__request_bodies__ = parse_qs(request_body.decode('utf-8'), )
+        self.__request_body__ = parse_qs(request_body.decode('utf-8'), )
 
     def data(self, model):
         __bunny__ = self
