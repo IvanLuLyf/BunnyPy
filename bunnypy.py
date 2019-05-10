@@ -49,6 +49,8 @@ class Bunny:
             return [default_html.encode('utf-8')]
 
     def __init__(self, host='127.0.0.1', port=8000, database=None):
+        if database is None:
+            database = {}
         db_config = {'connection': None, 'type': 'sqlite', 'prefix': ''}
         db_config.update(database)
         self.__host__ = host
@@ -78,7 +80,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.0.9
+BunnyPy v0.1.0
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
