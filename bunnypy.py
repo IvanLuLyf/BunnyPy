@@ -78,7 +78,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.0.8
+BunnyPy v0.0.9
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
@@ -146,11 +146,11 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             def __str__(self):
                 return str(vars(self))
 
-            def test(self):
-                print(self.__table_name__())
+            def insert(self):
+                return __bunny__.insert_into(self.table_name(), vars(self))
 
             @staticmethod
-            def __table_name__():
+            def table_name():
                 if '__table__' in model.__dict__:
                     return model.__table__
                 model_name = model.__name__
@@ -163,7 +163,7 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             def create():
                 __structure__ = []
                 primary_keys = ''
-                table_name = DataModel.__table_name__()
+                table_name = DataModel.table_name()
                 if self.__database_type__ == 'mysql':
                     for v in model.__dict__:
                         if not str.startswith(v, '__'):
@@ -184,6 +184,76 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
                                 column += ' autoincrement '
                             __structure__.append(column)
                     sql = "create table %s (%s)" % (table_name, ','.join(__structure__))
-                print(sql)
+                cursor = self.__connection__.cursor()
+                try:
+                    cursor.execute(sql)
+                    cursor.close()
+                    return True
+                except Exception:
+                    cursor.close()
+                    return False
 
         return DataModel
+
+    def fetch(self, sql, param=None):
+        if param is None:
+            param = []
+        cursor = self.__connection__.cursor()
+        cursor.execute(sql, param)
+        columns = [desc[0] for desc in cursor.description]
+        row = cursor.fetchone()
+        cursor.close()
+        return dict(zip(columns, row))
+
+    def fetch_all(self, sql, param=None):
+        if param is None:
+            param = []
+        cursor = self.__connection__.cursor()
+        cursor.execute(sql, param)
+        columns = [desc[0] for desc in cursor.description]
+        values = cursor.fetchall()
+        cursor.close()
+        result = []
+        for row in values:
+            result.append(dict(zip(columns, row)))
+        return result
+
+    def insert_into(self, table, data):
+        keys = list(data.keys())
+        values = list(data.values())
+        sql_string = "insert into %s (%s) values(%s)" % (
+            table, ','.join(keys), ','.join(['?' for i in range(len(keys))]))
+        cursor = self.__connection__.cursor()
+        cursor.execute(sql_string, values)
+        self.__connection__.commit()
+        cursor.close()
+
+    def update_by(self, data, table, where=None, param=None):
+        if param is None:
+            param = []
+        if where is not None:
+            where = ' where ' + where
+        cursor = self.__connection__.cursor()
+        keys = list(data.keys())
+        values = list(data.values())
+        sets = ','.join([keys[i] + '=?' for i in range(len(keys))])
+        sql_string = "update %s set %s %s" % (table, sets, where)
+        values.extend(param)
+        cursor.execute(sql_string, values)
+        result = cursor.rowcount
+        self.__connection__.commit()
+        cursor.close()
+        return result
+
+    def delete_by(self, table, where=None, param=None):
+        if param is None:
+            param = []
+        if where is not None:
+            where = ' where ' + where
+        cursor = self.__connection__.cursor()
+        sql_string = "delete from %s %s" % (table, where)
+        cursor.execute(sql_string, param)
+        result = cursor.rowcount
+        self.__connection__.commit()
+        cursor.close()
+        return result
