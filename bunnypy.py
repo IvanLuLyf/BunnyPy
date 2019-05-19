@@ -80,7 +80,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.1.1
+BunnyPy v0.1.2
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
@@ -137,6 +137,9 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
             content_length = 0
         request_body = environ['wsgi.input'].read(content_length)
         self.__request_body__ = parse_qs(request_body.decode('utf-8'), )
+
+    def render(self, view, context=None):
+        return self.TemplateRender(view, context).render()
 
     def data(self, model):
         __bunny__ = self
@@ -259,3 +262,114 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
         self.__connection__.commit()
         cursor.close()
         return result
+
+    class CodeBuilder:
+        INDENT_STEP = 4
+
+        def __init__(self):
+            self.indent = 0
+            self.lines = []
+
+        def forward(self):
+            self.indent += self.INDENT_STEP
+
+        def backward(self):
+            self.indent -= self.INDENT_STEP
+
+        def add(self, code):
+            self.lines.append(code)
+
+        def add_line(self, code):
+            self.lines.append(' ' * self.indent + code)
+
+        def __str__(self):
+            return '\n'.join(map(str, self.lines))
+
+    class TemplateRender:
+        def __init__(self, view, context=None):
+            try:
+                with open("template/" + view, "r", encoding='utf-8') as template_file:
+                    self.raw_text = template_file.read()
+            except FileNotFoundError:
+                self.raw_text = '<h1>Template' + view + ' Not Found</h1>'
+            self.context = context or {}
+            self.data_context = {}
+            self.code_builder = code_builder = Bunny.CodeBuilder()
+            self.buffered = []
+
+            self.re_variable = re.compile(r'{{ .*? \}\}')
+            self.re_comment = re.compile(r'{# .*? #\}')
+            self.re_tag = re.compile(r'{% .*? %\}')
+            self.re_tokens = re.compile(r'''(
+                (?:{{ .*? \}\})
+                |(?:{\# .*? \#\})
+                |(?:{% .*? %\})
+            )''', re.X)
+
+            code_builder.add_line('def __bunny_clara_temp():')
+            code_builder.forward()
+            code_builder.add_line('__bunny_clara_ret = []')
+            self._parse_text()
+
+            self.flush_buffer()
+            code_builder.add_line('return "".join(__bunny_clara_ret)')
+            code_builder.backward()
+
+        def _parse_text(self):
+            tokens = self.re_tokens.split(self.raw_text)
+            handlers = (
+                (self.re_variable.match, self._handle_variable),
+                (self.re_tag.match, self._handle_tag),
+                (self.re_comment.match, self._handle_comment),
+            )
+            default_handler = self._handle_string
+
+            for token in tokens:
+                for match, handler in handlers:
+                    if match(token):
+                        handler(token)
+                        break
+                else:
+                    default_handler(token)
+
+        def _handle_variable(self, token):
+            variable = token.strip('{} ')
+            self.data_context[variable] = ''
+            self.buffered.append('str({})'.format(variable))
+
+        def _handle_comment(self, token):
+            pass
+
+        def _handle_string(self, token):
+            self.buffered.append('{}'.format(repr(token)))
+
+        def _handle_tag(self, token):
+            self.flush_buffer()
+            tag = token.strip('{%} ')
+            tag_name = tag.split()[0]
+            self._handle_statement(tag, tag_name)
+
+        def _handle_statement(self, tag, tag_name):
+            if tag_name in ('if', 'elif', 'else', 'for'):
+                if tag_name in ('elif', 'else'):
+                    self.code_builder.backward()
+                self.code_builder.add_line('{}:'.format(tag))
+                self.code_builder.forward()
+            elif tag_name in ('break',):
+                self.code_builder.add_line(tag)
+            elif tag_name in ('endif', 'endfor'):
+                self.code_builder.backward()
+
+        def flush_buffer(self):
+            line = '__bunny_clara_ret.extend([{0}])'.format(','.join(self.buffered))
+            self.code_builder.add_line(line)
+            self.buffered = []
+
+        def render(self):
+            try:
+                self.data_context.update(self.context)
+                exec(str(self.code_builder), self.data_context)
+                result = self.data_context['__bunny_clara_temp']()
+                return result
+            except NameError as e:
+                return str(e)
