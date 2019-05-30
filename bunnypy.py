@@ -84,7 +84,7 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.1.4
+BunnyPy v0.1.6
 Serving HTTP on port {1}...
 Running on http://{0}:{1}/ (Press CTRL+C to quit)
 '''
@@ -148,6 +148,40 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
     def data(self, model):
         __bunny__ = self
 
+        class DataBuilder:
+            def __init__(self, where=None, param=None):
+                if where is not None:
+                    self.__filter__ = ' where ' + where
+                else:
+                    self.__filter__ = ''
+                if param is not None:
+                    self.__param__ = param
+                else:
+                    self.__param__ = []
+
+            def limit(self, size, start=0):
+                self.__filter__ += " limit {0},{1} ".format(start, size)
+                return self
+
+            def order(self, order_param):
+                self.__filter__ += " order by {0} ".format(order_param)
+                return self
+
+            def get(self, columns):
+                data = __bunny__.fetch("select * from " + DataModel.table_name() + self.__filter__, self.__param__)
+                m = DataModel()
+                m.__dict__.update(data)
+                return m
+
+            def get_all(self, columns):
+                result = []
+                data = __bunny__.fetch_all("select * from " + DataModel.table_name() + self.__filter__, self.__param__)
+                for d in data:
+                    m = DataModel()
+                    m.__dict__.update(d)
+                    result.append(m)
+                return result
+
         class DataModel(model):
             def __init__(self, *args, **kws):
                 model.__init__(self, *args, **kws)
@@ -157,6 +191,10 @@ Running on http://{0}:{1}/ (Press CTRL+C to quit)
 
             def insert(self):
                 return __bunny__.insert_into(self.table_name(), vars(self))
+
+            @staticmethod
+            def where(where=None, param=None):
+                return DataBuilder(where, param)
 
             @staticmethod
             def table_name():
