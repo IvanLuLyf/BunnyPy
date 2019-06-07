@@ -25,9 +25,8 @@ app = Bunny()
 @app.controller
 class IndexController:
     def ac_index(self):
-        return 'Hello World'
+        return 'Hello Bunny'
 
 if __name__ == '__main__':
     app.run()
 ```
-
