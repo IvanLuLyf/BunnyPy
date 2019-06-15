@@ -7,6 +7,8 @@ a Lightweight Python Web Framework
 [![Downloads](https://img.shields.io/pypi/dm/bunnypy.svg?color=brightgreen&style=flat-square)](https://pypi.org/project/BunnyPy/)
 [![License](https://img.shields.io/pypi/l/bunnypy.svg?color=blue&style=flat-square)](LICENSE)
 
+English | [中文](README_CN.md)
+
 ## Installation
 
 ```shell
