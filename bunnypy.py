@@ -1,4 +1,5 @@
 import re
+from pathlib import Path
 from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
@@ -12,16 +13,17 @@ class Bunny:
     request_method = 'GET'
 
     def handler(self, environ, start_response):
-        url_array = environ['PATH_INFO'].split('/')
-        if url_array[1] == 'static':
+        file_path = Path("static" + environ['PATH_INFO'])
+        if file_path.is_file():
             try:
-                with open(environ['PATH_INFO'][1:], "rb") as static_file:
+                with file_path.open("rb") as static_file:
                     data = static_file.read()
             except FileNotFoundError:
                 data = b'<h1>404 Not Found</h1>'
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             self.__erase_query__()
             return [data]
+        url_array = environ['PATH_INFO'].split('/')
         if url_array[1] == '':
             url_array[1] = 'index'
         if len(url_array) > 3:
