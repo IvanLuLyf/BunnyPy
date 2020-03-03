@@ -4,6 +4,8 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
+__version__ = "0.1.8"
+
 
 class Bunny:
     __controllers__ = {}
@@ -86,11 +88,11 @@ class Bunny:
 | __ -| | |   |   | | |   __| | |
 |_____|___|_|_|_|_|_  |__|  |_  |
                   |___|     |___|
-BunnyPy v0.1.7
+BunnyPy v{0}
 Serving HTTP on port {1}...
-Running on http://{0}:{1}/ (Press CTRL+C to quit)
+Running on http://{1}:{2}/ (Press CTRL+C to quit)
 '''
-        print(information.format(self.__host__, self.__port__))
+        print(information.format(__version__, self.__host__, self.__port__))
         httpd.serve_forever()
 
     def path(self, index, default_val=''):
