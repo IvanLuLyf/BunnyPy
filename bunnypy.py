@@ -4,7 +4,7 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.1.8"
+__version__ = "0.1.9"
 
 
 class Bunny:
@@ -57,15 +57,10 @@ class Bunny:
             return [default_html.encode('utf-8')]
 
     def __init__(self, host='127.0.0.1', port=8000, database=None):
-        if database is None:
-            database = {}
-        db_config = {'connection': None, 'type': 'sqlite', 'prefix': ''}
-        db_config.update(database)
         self.__host__ = host
         self.__port__ = port
-        self.__connection__ = db_config['connection']
-        self.__database_type__ = db_config['type']
-        self.__database_prefix__ = db_config['prefix']
+        if isinstance(database, self.Database):
+            self.__database__ = database
 
     def controller(self, ctrl_cls):
         if isinstance(ctrl_cls, type):
@@ -151,6 +146,7 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
 
     def data(self, model):
         __bunny__ = self
+        __db__ = self.__database__
 
         class DataBuilder:
             def __init__(self, where=None, param=None):
@@ -164,22 +160,34 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
                     self.__param__ = []
 
             def limit(self, size, start=0):
-                self.__filter__ += " limit {0},{1} ".format(start, size)
+                self.__filter__ += " limit {0} offset {0} ".format(size, start)
                 return self
 
             def order(self, order_param):
                 self.__filter__ += " order by {0} ".format(order_param)
                 return self
 
-            def get(self, columns):
-                data = __bunny__.fetch("select * from " + DataModel.table_name() + self.__filter__, self.__param__)
+            def get(self, columns=None, debug=False):
+                __c__ = '*'
+                if isinstance(columns, list):
+                    __c__ = ','.join(columns)
+                elif isinstance(columns, str):
+                    __c__ = columns
+                __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
+                data = __db__.fetch(__sql__, self.__param__, debug)
                 m = DataModel()
                 m.__dict__.update(data)
                 return m
 
-            def get_all(self, columns):
+            def get_all(self, columns=None, debug=False):
                 result = []
-                data = __bunny__.fetch_all("select * from " + DataModel.table_name() + self.__filter__, self.__param__)
+                __c__ = '*'
+                if isinstance(columns, list):
+                    __c__ = ','.join(columns)
+                elif isinstance(columns, str):
+                    __c__ = columns
+                __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
+                data = __db__.fetch_all(__sql__, self.__param__, debug)
                 for d in data:
                     m = DataModel()
                     m.__dict__.update(d)
@@ -193,8 +201,8 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
             def __str__(self):
                 return str(vars(self))
 
-            def insert(self):
-                return __bunny__.insert_into(self.table_name(), vars(self))
+            def insert(self, debug=False):
+                return __db__.insert_into(vars(self), self.table_name(), debug)
 
             @staticmethod
             def where(where=None, param=None):
@@ -208,106 +216,165 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
                 if model_name.endswith('Model'):
                     model_name = model_name[0:-5]
                 p = re.compile(r'([a-z]|\d)([A-Z])')
-                return __bunny__.__database_prefix__ + re.sub(p, r'\1_\2', model_name).lower()
+                return __db__.prefix() + re.sub(p, r'\1_\2', model_name).lower()
 
             @staticmethod
-            def create():
-                __structure__ = []
-                primary_keys = ''
+            def create(debug=False):
                 table_name = DataModel.table_name()
-                if self.__database_type__ == 'mysql':
-                    for v in model.__dict__:
-                        if not str.startswith(v, '__'):
-                            column = v + " " + model.__dict__[v]
-                            if '__ai__' in model.__dict__ and v == model.__ai__:
-                                column += ' auto_increment '
-                            __structure__.append(column)
-                        if '__pk__' in model.__dict__:
-                            primary_keys = ',primary key(%s)' % (','.join(model.__pk__))
-                    sql = "create table %s (%s %s)" % (table_name, ','.join(__structure__), primary_keys)
-                else:
-                    for v in model.__dict__:
-                        if not str.startswith(v, '__'):
-                            column = v + " " + model.__dict__[v]
-                            if '__pk__' in model.__dict__ and v in model.__pk__:
-                                column += ' primary key '
-                            if '__ai__' in model.__dict__ and v == model.__ai__:
-                                column += ' autoincrement '
-                            __structure__.append(column)
-                    sql = "create table %s (%s)" % (table_name, ','.join(__structure__))
-                cursor = self.__connection__.cursor()
-                try:
-                    cursor.execute(sql)
-                    cursor.close()
-                    return True
-                except Exception:
-                    cursor.close()
-                    return False
+                columns = {}
+                ai = ''
+                pk = []
+                uk = None
+                for v in model.__dict__:
+                    if not str.startswith(v, '__'):
+                        columns[v] = model.__dict__[v]
+                if '__ai__' in model.__dict__:
+                    ai = model.__ai__
+                if '__pk__' in model.__dict__:
+                    pk = model.__pk__
+                if '__uk__' in model.__dict__:
+                    uk = model.__uk__
+                return __db__.create_table(table_name, columns, pk, ai, uk, debug)
 
         return DataModel
 
-    def fetch(self, sql, param=None):
-        if param is None:
-            param = []
-        cursor = self.__connection__.cursor()
-        cursor.execute(sql, param)
-        columns = [desc[0] for desc in cursor.description]
-        row = cursor.fetchone()
-        cursor.close()
-        return dict(zip(columns, row))
+    class Database:
+        def prefix(self) -> str:
+            pass
 
-    def fetch_all(self, sql, param=None):
-        if param is None:
-            param = []
-        cursor = self.__connection__.cursor()
-        cursor.execute(sql, param)
-        columns = [desc[0] for desc in cursor.description]
-        values = cursor.fetchall()
-        cursor.close()
-        result = []
-        for row in values:
-            result.append(dict(zip(columns, row)))
-        return result
+        def fetch(self, sql: str, param: object = None, debug: bool = False) -> dict:
+            pass
 
-    def insert_into(self, table, data):
-        keys = list(data.keys())
-        values = list(data.values())
-        sql_string = "insert into %s (%s) values(%s)" % (
-            table, ','.join(keys), ','.join(['?' for i in range(len(keys))]))
-        cursor = self.__connection__.cursor()
-        cursor.execute(sql_string, values)
-        self.__connection__.commit()
-        cursor.close()
+        def fetch_all(self, sql: str, param: object = None, debug: bool = False) -> list:
+            pass
 
-    def update_by(self, data, table, where=None, param=None):
-        if param is None:
-            param = []
-        if where is not None:
-            where = ' where ' + where
-        cursor = self.__connection__.cursor()
-        keys = list(data.keys())
-        values = list(data.values())
-        sets = ','.join([keys[i] + '=?' for i in range(len(keys))])
-        sql_string = "update %s set %s %s" % (table, sets, where)
-        values.extend(param)
-        cursor.execute(sql_string, values)
-        result = cursor.rowcount
-        self.__connection__.commit()
-        cursor.close()
-        return result
+        def insert_into(self, data: dict, table: str, debug: bool = False) -> int:
+            pass
 
-    def delete_by(self, table, where=None, param=None):
-        if param is None:
-            param = []
-        if where is not None:
-            where = ' where ' + where
-        cursor = self.__connection__.cursor()
-        sql_string = "delete from %s %s" % (table, where)
-        cursor.execute(sql_string, param)
-        result = cursor.rowcount
-        self.__connection__.commit()
-        cursor.close()
-        return result
+        def update_by(self, data: dict, table: str, where: str = None, param: dict = None, debug: bool = False) -> int:
+            pass
+
+        def delete_by(self, table: str, where: str = None, param: dict = None, debug: bool = False) -> int:
+            pass
+
+        def create_table(self, tbl: str, cols: dict, pk: list, ai: str = '', uk: list = None, d: bool = False) -> bool:
+            pass
+
+        def exec(self, sql: str):
+            pass
+
+        def query(self, sql: str) -> object:
+            pass
+
+    class SQLiteDatabase(Database):
+        def __init__(self, connection, prefix=''):
+            self.__connection__ = connection
+            self.__prefix__ = prefix
+
+        def prefix(self):
+            return self.__prefix__
+
+        def fetch(self, sql, param=None, debug=False):
+            if debug:
+                return sql
+            if param is None:
+                param = []
+            cursor = self.__connection__.cursor()
+            cursor.execute(sql, param)
+            columns = [desc[0] for desc in cursor.description]
+            row = cursor.fetchone()
+            cursor.close()
+            return dict(zip(columns, row))
+
+        def fetch_all(self, sql, param=None, debug=False):
+            if debug:
+                return sql
+            if param is None:
+                param = []
+            cursor = self.__connection__.cursor()
+            cursor.execute(sql, param)
+            columns = [desc[0] for desc in cursor.description]
+            values = cursor.fetchall()
+            cursor.close()
+            result = []
+            for row in values:
+                result.append(dict(zip(columns, row)))
+            return result
+
+        def insert_into(self, data, table, debug=False):
+            keys = list(data.keys())
+            values = list(data.values())
+            places = ['?' for i in range(len(keys))]
+            sql_string = "insert into {0} ({1}) values({2})".format(table, ','.join(keys), ','.join(places))
+            if debug:
+                return sql_string
+            cursor = self.__connection__.cursor()
+            cursor.execute(sql_string, values)
+            self.__connection__.commit()
+            cursor.close()
+
+        def update_by(self, data, table, where=None, param=None, debug=False):
+            if param is None:
+                param = []
+            if where is not None:
+                where = ' where ' + where
+            cursor = self.__connection__.cursor()
+            keys = list(data.keys())
+            values = list(data.values())
+            sets = ','.join([keys[i] + '=?' for i in range(len(keys))])
+            sql_string = "update {0} set {1} {2}".format(table, sets, where)
+            if debug:
+                return sql_string
+            values.extend(param)
+            cursor.execute(sql_string, values)
+            result = cursor.rowcount
+            self.__connection__.commit()
+            cursor.close()
+            return result
+
+        def delete_by(self, table, where=None, param=None, debug=False):
+            if param is None:
+                param = []
+            if where is not None:
+                where = ' where ' + where
+            cursor = self.__connection__.cursor()
+            sql_string = "delete from {0} {1}".format(table, where)
+            if debug:
+                return sql_string
+            cursor.execute(sql_string, param)
+            result = cursor.rowcount
+            self.__connection__.commit()
+            cursor.close()
+            return result
+
+        def create_table(self, table_name, columns, pk=None, ai='', uk=None, debug=False):
+            if pk is None:
+                pk = []
+            if uk is None:
+                uk = []
+            __structure__ = []
+            __pk__ = ''
+            __uk__ = ''
+            for c in columns:
+                column = c + " " + columns[c]
+                if c == ai:
+                    column = c + ' integer primary key autoincrement '
+                __structure__.append(column)
+            if len(pk) > 0 and ai == '':
+                __pk__ = ',primary key(' + ','.join(pk) + ')'
+            if len(uk) > 0:
+                __uk__ = ',unique key(' + ','.join(uk) + ')'
+            sql = "create table {0} ({1}{2}{3})".format(table_name, ','.join(__structure__), __pk__, __uk__)
+            if debug:
+                return sql
+            cursor = self.__connection__.cursor()
+            try:
+                cursor.execute(sql)
+                cursor.close()
+                return True
+            except Exception:
+                cursor.close()
+                return False
 
     class CodeBuilder:
         INDENT_STEP = 4
