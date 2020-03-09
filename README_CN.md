@@ -17,7 +17,7 @@ pip install bunnypy
 
 ## 简单使用
 
-> hello.py
+一个HelloWorld应用
 
 ```python
 from bunnypy import Bunny
@@ -31,4 +31,54 @@ class IndexController:
 
 if __name__ == '__main__':
     app.run()
+```
+
+## 数据模型
+
+```python
+from bunnypy import Bunny
+import sqlite3
+
+# ------------------------------------------------------------
+# 使用SQLite3配置数据库
+
+db = Bunny.SQLiteDatabase(sqlite3.connect('test.db'), 'tp_')
+app = Bunny(database=db)
+
+# ------------------------------------------------------------
+# 声明一个数据模型类
+
+
+@app.data
+class Message:
+    __pk__ = ['id']
+    __ai__ = 'id'
+    id = 'integer not null'
+    msg = 'text not null'
+
+    def __init__(self, msg=None):
+        self.msg = msg
+
+
+# ------------------------------------------------------------
+# 创建表格
+
+Message.create() # 创建一个名为"tp_message"的表
+
+# ------------------------------------------------------------
+# 插入数据
+
+Message(msg="New Message").insert() # 在"tp_message"表添加一行数据
+
+# ------------------------------------------------------------
+# 链式调用查询
+
+# 获取msg等于"Test"的一行数据
+Message.where(" msg = ? ",["Test"]).get(['id','msg'])
+
+# 从位置0开始获取十行数据并按ID倒序
+size = 10
+start = 0
+Message.where().order(' id desc ').limit(size,start).get_all(['id','msg'])
+
 ```

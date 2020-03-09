@@ -17,7 +17,7 @@ pip install bunnypy
 
 ## Simple Usage
 
-> hello.py
+a HelloWord Application
 
 ```python
 from bunnypy import Bunny
@@ -35,13 +35,12 @@ if __name__ == '__main__':
 
 ## Data Model
 
-### Config database
-
-Example: using SQLite3
-
 ```python
 from bunnypy import Bunny
 import sqlite3
+
+# ------------------------------------------------------------
+# Config database using SQLite3
 
 db = Bunny.SQLiteDatabase(sqlite3.connect('test.db'), 'tp_')
 app = Bunny(database=db)
@@ -64,23 +63,22 @@ class Message:
 # ------------------------------------------------------------
 # Create a table
 
-Message.create() # create a table
+Message.create() # create a table named "tp_message"
 
 # ------------------------------------------------------------
 # Insert Data
 
-Message(msg="New Message").insert() # add a new row into table
+Message(msg="New Message").insert() # add a new row into table "tp_message"
 
 # ------------------------------------------------------------
-# Linked call query
+# Chained-call style query
 
+# get one row where msg equals "Test"
+Message.where(" msg = ? ",["Test"]).get(['id','msg'])
+
+# get 10 rows of data starting at position 0 and sort by id in reverse order
 size = 10
 start = 0
-
-Message.where(" msg = ? ",["Test"]).order(' id desc ').limit(size,start).get(['id','msg'])
-
-# or
-
-Message.where(" msg = ? ",["Test"]).order(' id desc ').limit(size,start).get_all(['id','msg'])
+Message.where().order(' id desc ').limit(size,start).get_all(['id','msg'])
 
 ```
