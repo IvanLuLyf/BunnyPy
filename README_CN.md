@@ -82,3 +82,38 @@ start = 0
 Message.where().order(' id desc ').limit(size,start).get_all(['id','msg'])
 
 ```
+
+## 模板
+
+在```template```目录下的```temp.html```
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Template</title>
+</head>
+<body>
+Output: {{ msg }}
+</body>
+</html>
+```
+
+对应的Python代码
+
+```python
+from bunnypy import Bunny
+
+app = Bunny()
+
+@app.controller
+class IndexController:
+    def ac_index(self):
+        return app.render('temp.html',{"msg":"Hello World"})
+
+
+if __name__ == '__main__':
+    app.run()
+
+```
