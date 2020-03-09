@@ -4,10 +4,21 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.1.9"
+__version__ = "0.2.0"
+
+__default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
+<style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
+<a href="https://github.com/IvanLuLyf/BunnyPy">
+<img src="https://github.com/IvanLuLyf/BunnyPy/raw/master/bunny.png?raw=true" width="400px" style="margin-top: 150px">
+</a>
+<h1>Welcome to <a href="https://github.com/IvanLuLyf/BunnyPy">BunnyPy</a>!</h1>
+<p>If you see this page, the BunnyPy is successfully working.</p>
+<p><em>Thank you for using BunnyPy.</em></p></body></html>
+'''
 
 
 class Bunny:
+    __sub_apps__ = {}
     __controllers__ = {}
     __queries__ = {}
     __request_body__ = {}
@@ -45,22 +56,17 @@ class Bunny:
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [response.encode('utf-8')]
         else:
-            default_html = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
-<style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
-<a href="https://github.com/IvanLuLyf/BunnyPy">
-<img src="https://github.com/IvanLuLyf/BunnyPy/raw/master/bunny.png?raw=true" width="400px" style="margin-top: 150px">
-</a>
-<h1>Welcome to <a href="https://github.com/IvanLuLyf/BunnyPy">BunnyPy</a>!</h1>
-<p>If you see this page, the BunnyPy is successfully working.</p>
-<p><em>Thank you for using BunnyPy.</em></p></body></html>'''
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
-            return [default_html.encode('utf-8')]
+            return [__default_html__.encode('utf-8')]
 
     def __init__(self, host='127.0.0.1', port=8000, database=None):
         self.__host__ = host
         self.__port__ = port
         if isinstance(database, self.Database):
             self.__database__ = database
+
+    def sub_app(self, app_path, app_module):
+        pass
 
     def controller(self, ctrl_cls):
         if isinstance(ctrl_cls, type):
