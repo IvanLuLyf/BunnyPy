@@ -181,9 +181,12 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
                     __c__ = columns
                 __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
                 data = __db__.fetch(__sql__, self.__param__, debug)
-                m = DataModel()
-                m.__dict__.update(data)
-                return m
+                if data is not None:
+                    m = DataModel()
+                    m.__dict__.update(data)
+                    return m
+                else:
+                    return None
 
             def get_all(self, columns=None, debug=False):
                 result = []
@@ -290,7 +293,9 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
             columns = [desc[0] for desc in cursor.description]
             row = cursor.fetchone()
             cursor.close()
-            return dict(zip(columns, row))
+            if row is not None:
+                return dict(zip(columns, row))
+            return None
 
         def fetch_all(self, sql, param=None, debug=False):
             if debug:
