@@ -13,7 +13,19 @@ __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome
 </a>
 <h1>Welcome to <a href="https://github.com/IvanLuLyf/BunnyPy">BunnyPy</a>!</h1>
 <p>If you see this page, the BunnyPy is successfully working.</p>
-<p><em>Thank you for using BunnyPy.</em></p></body></html>
+<p><em>Thank you for using BunnyPy.</em></p></body></html>'''
+
+__running_msg__ = '''
+
+ _____                 _____     
+| __  |_ _ ___ ___ _ _|  _  |_ _ 
+| __ -| | |   |   | | |   __| | |
+|_____|___|_|_|_|_|_  |__|  |_  |
+                  |___|     |___|
+BunnyPy v{0}
+Serving HTTP on port {1}...
+Running on http://{1}:{2}/ (Press CTRL+C to quit)
+
 '''
 
 
@@ -82,18 +94,7 @@ class Bunny:
 
     def run(self):
         httpd = make_server(self.__host__, self.__port__, self.handler)
-        information = '''
-                                 
- _____                 _____     
-| __  |_ _ ___ ___ _ _|  _  |_ _ 
-| __ -| | |   |   | | |   __| | |
-|_____|___|_|_|_|_|_  |__|  |_  |
-                  |___|     |___|
-BunnyPy v{0}
-Serving HTTP on port {1}...
-Running on http://{1}:{2}/ (Press CTRL+C to quit)
-'''
-        print(information.format(__version__, self.__host__, self.__port__))
+        print(__running_msg__.format(__version__, self.__host__, self.__port__))
         httpd.serve_forever()
 
     def path(self, index, default_val=''):
@@ -275,7 +276,7 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
         def query(self, sql: str) -> object:
             pass
 
-    class SQLiteDatabase(Database):
+    class PdaDatabase(Database):
         def __init__(self, connection, prefix=''):
             self.__connection__ = connection
             self.__prefix__ = prefix
@@ -358,6 +359,7 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
             cursor.close()
             return result
 
+    class SQLiteDatabase(PdaDatabase):
         def create_table(self, table_name, columns, pk=None, ai='', uk=None, debug=False):
             if pk is None:
                 pk = []
