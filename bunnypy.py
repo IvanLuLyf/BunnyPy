@@ -4,7 +4,7 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -32,9 +32,6 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
 class Bunny:
     __sub_apps__ = {}
     __controllers__ = {}
-    __queries__ = {}
-    __request_body__ = {}
-    __path_data__ = []
     request_method = 'GET'
 
     def handler(self, environ, start_response):
@@ -46,25 +43,17 @@ class Bunny:
             except FileNotFoundError:
                 data = b'<h1>404 Not Found</h1>'
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
-            self.__erase_query__()
             return [data]
         url_array = environ['PATH_INFO'].split('/')
         if url_array[1] == '':
             url_array[1] = 'index'
-        if len(url_array) > 3:
-            self.__path_data__ = url_array[3:]
         if len(self.__controllers__.keys()) > 0:
-            query_string = environ['QUERY_STRING']
-            self.request_method = environ['REQUEST_METHOD']
-            if self.request_method != 'GET':
-                self.__parse_input__(environ)
-            self.__queries__ = parse_qs(query_string)
             if len(url_array) > 2:
                 action = url_array[2].lower()
             else:
                 action = 'index'
-            response = self.__call_action__(url_array[1], action)
-            self.__erase_query__()
+            req = self.Request(environ)
+            response = self.__call_action__(req, url_array[1], action)
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [response.encode('utf-8')]
         else:
@@ -97,59 +86,59 @@ class Bunny:
         print(__running_msg__.format(__version__, self.__host__, self.__port__))
         httpd.serve_forever()
 
-    def path(self, index, default_val=''):
-        if index < len(self.__path_data__):
-            return self.__path_data__[index]
-        return default_val
-
-    def request(self, name, method='GET', default_val=None, multi_param=False):
-        if method == 'GET':
-            if multi_param:
-                data_arr = self.__queries__.get(name, [])
-                return [escape(data) for data in data_arr]
-            data = self.__queries__.get(name, [None])[0]
-            if data:
-                return escape(data)
-            return default_val
-        else:
-            if multi_param:
-                data_arr = self.__request_body__.get(name, [])
-                return [escape(data) for data in data_arr]
-            data = self.__request_body__.get(name, [None])[0]
-            if data:
-                return escape(unquote(data))
-            return default_val
-
-    def __call_action__(self, name, action):
+    def __call_action__(self, req, name, action):
         mod = self.__controllers__.get(name)
         if mod is not None:
             ac = getattr(mod, 'ac_' + action, None)
             if ac is not None:
-                return ac()
+                return self.__call_func__(ac, req)
             else:
                 ac_other = getattr(mod, 'other', None)
                 if ac_other is not None:
-                    return ac_other()
+                    return self.__call_func__(ac_other, req)
                 else:
                     return 'Action {0} Not Exists'.format(action)
         else:
             return 'Mod {0} Not Exists'.format(name)
 
-    def __erase_query__(self):
-        self.__queries__ = {}
-        self.__request_body__ = {}
-        self.__path_data__ = []
-
-    def __parse_input__(self, environ):
+    def __call_func__(self, func, req):
         try:
-            content_length = int(environ['CONTENT_LENGTH'])
-        except ValueError:
-            content_length = 0
-        request_body = environ['wsgi.input'].read(content_length)
-        self.__request_body__ = parse_qs(request_body.decode('utf-8'), )
+            args = []
+            for i in range(func.__code__.co_argcount):
+                vn = func.__code__.co_varnames[i]
+                if vn in func.__annotations__:
+                    if func.__annotations__[vn] == self.Request:
+                        args.append(req)
+                    elif func.__annotations__[vn] == int:
+                        args.append(int(req[vn]))
+                elif vn == 'self':
+                    continue
+                else:
+                    args.append(req[vn])
+            return func(*args)
+        except Exception as e:
+            return '<h1>BunnyPy Error</h1><p>{0}</p>'.format(str(e))
 
     def render(self, view, context=None):
         return self.TemplateRender(view, context).render()
+
+    class Request:
+        def __init__(self, environ):
+            query_string = environ['QUERY_STRING']
+            self.method = str.lower(environ['REQUEST_METHOD'])
+            self.query = parse_qs(query_string)
+            try:
+                content_length = int(environ['CONTENT_LENGTH'])
+            except ValueError:
+                content_length = 0
+            request_body = environ['wsgi.input'].read(content_length)
+            self.__request_body__ = parse_qs(query_string)
+            self.__request_body__.update(parse_qs(request_body.decode('utf-8')))
+
+        def __getitem__(self, item):
+            data = self.__request_body__.get(item, [None])[0]
+            if data:
+                return escape(data)
 
     def data(self, model):
         __bunny__ = self
