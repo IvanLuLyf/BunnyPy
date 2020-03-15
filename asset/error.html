@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>BunnyPy Error</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+        }
+
+        .title {
+            border-bottom: 1px solid #9baeca;
+            color: #9baeca;
+            padding: 0.75rem;
+        }
+
+        .sub-title {
+            margin: 0.75rem;
+        }
+
+        .link {
+            color: deepskyblue;
+            text-decoration: none;
+        }
+
+        .message {
+            margin: 0.75rem;
+            padding: 0.75rem;
+            border-radius: 0.25rem;
+            background: mistyrose;
+        }
+
+        .message table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        .message table td, .message table th {
+            border: 1px solid lightyellow;
+            color: #666;
+            height: 30px;
+        }
+
+        .message table tr:nth-child(odd) {
+            background: white;
+        }
+
+        .message table tr:nth-child(even) {
+            background: floralwhite;
+        }
+    </style>
+</head>
+<body>
+<h1 class="title">BunnyPy Error</h1>
+<pre class="message">{{ bunny_error }}</pre>
+<p class="message">Powered By <a class="link" href="http://github.com/IvanLuLyf/BunnyPy">BunnyPy</a></p>
+</body>
+</html>

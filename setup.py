@@ -16,6 +16,7 @@ setup(
     url='https://github.com/ivanlulyf/bunnypy',
     py_modules=['bunnypy'],
     scripts=['bunnypy.py'],
+    include_package_data=True,
     license='MIT',
     platforms='any',
     classifiers=['Operating System :: OS Independent',

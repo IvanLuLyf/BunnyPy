@@ -1,10 +1,11 @@
+import os
 import re
 from pathlib import Path
 from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.1"
+__version__ = "0.2.2"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -28,6 +29,8 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
 
 '''
 
+__asset_dir__ = os.path.dirname(os.path.abspath(__file__)) + '/asset/'
+
 
 class Bunny:
     __sub_apps__ = {}
@@ -41,7 +44,7 @@ class Bunny:
                 with file_path.open("rb") as static_file:
                     data = static_file.read()
             except FileNotFoundError:
-                data = b'<h1>404 Not Found</h1>'
+                data = self.__render_error('404 Not Found');
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [data]
         url_array = environ['PATH_INFO'].split('/')
@@ -97,9 +100,9 @@ class Bunny:
                 if ac_other is not None:
                     return self.__call_func__(ac_other, req)
                 else:
-                    return 'Action {0} Not Exists'.format(action)
+                    return self.__render_error('Action {0} Not Exists'.format(action))
         else:
-            return 'Mod {0} Not Exists'.format(name)
+            return self.__render_error('Mod {0} Not Exists'.format(name))
 
     def __call_func__(self, func, req):
         try:
@@ -117,10 +120,13 @@ class Bunny:
                     args.append(req[vn])
             return func(*args)
         except Exception as e:
-            return '<h1>BunnyPy Error</h1><p>{0}</p>'.format(str(e))
+            return self.__render_error(str(e))
 
     def render(self, view, context=None):
         return self.TemplateRender(view, context).render()
+
+    def __render_error(self, error_str):
+        return self.TemplateRender('error.html', {'bunny_error': error_str}, __asset_dir__).render()
 
     class Request:
         def __init__(self, environ):
@@ -401,9 +407,11 @@ class Bunny:
             return '\n'.join(map(str, self.lines))
 
     class TemplateRender:
-        def __init__(self, view, context=None):
+        def __init__(self, view, context=None, base_path=None):
+            if base_path is None:
+                base_path = "template/"
             try:
-                with open("template/" + view, "r", encoding='utf-8') as template_file:
+                with open(base_path + view, "r", encoding='utf-8') as template_file:
                     self.raw_text = template_file.read()
             except FileNotFoundError:
                 self.raw_text = '<h1>Template' + view + ' Not Found</h1>'
