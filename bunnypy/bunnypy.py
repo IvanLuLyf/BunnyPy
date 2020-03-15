@@ -6,7 +6,7 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.3"
+__version__ = "0.2.4"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
