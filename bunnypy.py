@@ -1,11 +1,12 @@
 import os
 import re
+import traceback
 from pathlib import Path
 from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.2"
+__version__ = "0.2.3"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -44,7 +45,7 @@ class Bunny:
                 with file_path.open("rb") as static_file:
                     data = static_file.read()
             except FileNotFoundError:
-                data = self.__render_error('404 Not Found');
+                data = self.__render_error('404 Not Found')
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [data]
         url_array = environ['PATH_INFO'].split('/')
@@ -120,13 +121,29 @@ class Bunny:
                     args.append(req[vn])
             return func(*args)
         except Exception as e:
-            return self.__render_error(str(e))
+            err_trace = []
+            err_origin = traceback.extract_tb(e.__traceback__)
+            _no = 0
+            for i in err_origin:
+                if _no == 0:
+                    _no += 1
+                    continue
+                err_trace.append({
+                    "no": _no,
+                    "line": i.lineno,
+                    "file": str.replace(i.filename, os.sep, '/'),
+                    "code": i.line,
+                })
+                _no += 1
+            return self.__render_error(str(e), err_trace)
 
     def render(self, view, context=None):
         return self.TemplateRender(view, context).render()
 
-    def __render_error(self, error_str):
-        return self.TemplateRender('error.html', {'bunny_error': error_str}, __asset_dir__).render()
+    def __render_error(self, msg, err_trace=None):
+        return self.TemplateRender('error.html', {
+            'bunny_error': msg, 'bunny_error_trace': err_trace
+        }, __asset_dir__).render()
 
     class Request:
         def __init__(self, environ):

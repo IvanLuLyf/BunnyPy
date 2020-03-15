@@ -56,6 +56,29 @@
 <body>
 <h1 class="title">BunnyPy Error</h1>
 <pre class="message">{{ bunny_error }}</pre>
+{% if bunny_error_trace %}
+<h4 class="sub-title">Trace</h4>
+<div class="message">
+    <table>
+        <tbody>
+        <tr class="bg2">
+            <td>No.</td>
+            <td>File</td>
+            <td>Line</td>
+            <td>Code</td>
+        </tr>
+        {% for t in bunny_error_trace %}
+        <tr class="bg1">
+            <td>{{ t['no'] }}</td>
+            <td>{{ t['file'] }}</td>
+            <td>{{ t['line'] }}</td>
+            <td>{{ t['code'] }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
 <p class="message">Powered By <a class="link" href="http://github.com/IvanLuLyf/BunnyPy">BunnyPy</a></p>
 </body>
 </html>
