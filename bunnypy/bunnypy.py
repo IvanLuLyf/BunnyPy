@@ -1,12 +1,13 @@
 import os
 import re
 import traceback
+import json
 from pathlib import Path
 from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.4"
+__version__ = "0.2.5"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -58,8 +59,12 @@ class Bunny:
                 action = 'index'
             req = self.Request(environ)
             response = self.__call_action__(req, url_array[1], action)
-            start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
-            return [response.encode('utf-8')]
+            if type(response) == dict or type(response) == list:
+                start_response('200 OK', [('Content-Type', 'application/json;charset=utf-8')])
+                return [json.dumps(response).encode('utf-8')]
+            else:
+                start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+                return [response.encode('utf-8')]
         else:
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [__default_html__.encode('utf-8')]
@@ -149,19 +154,26 @@ class Bunny:
         def __init__(self, environ):
             query_string = environ['QUERY_STRING']
             self.method = str.lower(environ['REQUEST_METHOD'])
+            self.contentType = environ['CONTENT_TYPE']
             self.query = parse_qs(query_string)
             try:
                 content_length = int(environ['CONTENT_LENGTH'])
             except ValueError:
                 content_length = 0
-            request_body = environ['wsgi.input'].read(content_length)
+            request_body = (environ['wsgi.input'].read(content_length)).decode('utf-8')
             self.__request_body__ = parse_qs(query_string)
-            self.__request_body__.update(parse_qs(request_body.decode('utf-8')))
+            if self.contentType == 'application/json':
+                self.__request_body__.update(json.loads(request_body))
+            else:
+                self.__request_body__.update(parse_qs(request_body))
 
         def __getitem__(self, item):
-            data = self.__request_body__.get(item, [None])[0]
-            if data:
-                return escape(data)
+            if self.contentType == 'application/json':
+                return self.__request_body__.get(item, None)
+            else:
+                data = self.__request_body__.get(item, [None])[0]
+                if data:
+                    return escape(data)
 
     def data(self, model):
         __bunny__ = self
@@ -179,14 +191,14 @@ class Bunny:
                     self.__param__ = []
 
             def limit(self, size, start=0):
-                self.__filter__ += " limit {0} offset {0} ".format(size, start)
+                self.__filter__ += " limit {0} offset {1} ".format(size, start)
                 return self
 
             def order(self, order_param):
                 self.__filter__ += " order by {0} ".format(order_param)
                 return self
 
-            def get(self, columns=None, debug=False):
+            def get(self, columns=None, debug=False, raw=False):
                 __c__ = '*'
                 if isinstance(columns, list):
                     __c__ = ','.join(columns)
@@ -194,6 +206,8 @@ class Bunny:
                     __c__ = columns
                 __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
                 data = __db__.fetch(__sql__, self.__param__, debug)
+                if raw:
+                    return data
                 if data is not None:
                     m = DataModel()
                     m.__dict__.update(data)
@@ -201,7 +215,7 @@ class Bunny:
                 else:
                     return None
 
-            def get_all(self, columns=None, debug=False):
+            def get_all(self, columns=None, debug=False, raw=False):
                 result = []
                 __c__ = '*'
                 if isinstance(columns, list):
@@ -210,6 +224,8 @@ class Bunny:
                     __c__ = columns
                 __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
                 data = __db__.fetch_all(__sql__, self.__param__, debug)
+                if raw:
+                    return data
                 for d in data:
                     m = DataModel()
                     m.__dict__.update(d)
