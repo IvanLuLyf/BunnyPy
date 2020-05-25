@@ -7,7 +7,7 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.5"
+__version__ = "0.2.6"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -162,7 +162,7 @@ class Bunny:
                 content_length = 0
             request_body = (environ['wsgi.input'].read(content_length)).decode('utf-8')
             self.__request_body__ = parse_qs(query_string)
-            if self.contentType == 'application/json':
+            if self.contentType == 'application/json' and content_length > 0:
                 self.__request_body__.update(json.loads(request_body))
             else:
                 self.__request_body__.update(parse_qs(request_body))
@@ -182,9 +182,11 @@ class Bunny:
         class DataBuilder:
             def __init__(self, where=None, param=None):
                 if where is not None:
-                    self.__filter__ = ' where ' + where
+                    self.__filter__ = where
+                    self.__where__ = ' where '
                 else:
                     self.__filter__ = ''
+                    self.__where__ = ''
                 if param is not None:
                     self.__param__ = param
                 else:
@@ -204,7 +206,8 @@ class Bunny:
                     __c__ = ','.join(columns)
                 elif isinstance(columns, str):
                     __c__ = columns
-                __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
+                __f__ = self.__where__ + self.__filter__
+                __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), __f__)
                 data = __db__.fetch(__sql__, self.__param__, debug)
                 if raw:
                     return data
@@ -222,7 +225,8 @@ class Bunny:
                     __c__ = ','.join(columns)
                 elif isinstance(columns, str):
                     __c__ = columns
-                __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), self.__filter__)
+                __f__ = self.__where__ + self.__filter__
+                __sql__ = "select {0} from {1}{2}".format(__c__, DataModel.table_name(), __f__)
                 data = __db__.fetch_all(__sql__, self.__param__, debug)
                 if raw:
                     return data
@@ -231,6 +235,12 @@ class Bunny:
                     m.__dict__.update(d)
                     result.append(m)
                 return result
+
+            def update(self, data=None, debug=False):
+                return __db__.update_by(data, DataModel.table_name(), self.__filter__, self.__param__, debug)
+
+            def delete(self, debug=False):
+                return __db__.delete_by(DataModel.table_name(), self.__filter__, self.__param__, debug)
 
         class DataModel(model):
             def __init__(self, *args, **kws):
@@ -289,10 +299,10 @@ class Bunny:
         def insert_into(self, data: dict, table: str, debug: bool = False) -> int:
             pass
 
-        def update_by(self, data: dict, table: str, where: str = None, param: dict = None, debug: bool = False) -> int:
+        def update_by(self, data: dict, table: str, where: str = None, param: list = None, debug: bool = False) -> int:
             pass
 
-        def delete_by(self, table: str, where: str = None, param: dict = None, debug: bool = False) -> int:
+        def delete_by(self, table: str, where: str = None, param: list = None, debug: bool = False) -> int:
             pass
 
         def create_table(self, tbl: str, cols: dict, pk: list, ai: str = '', uk: list = None, d: bool = False) -> bool:
@@ -411,6 +421,7 @@ class Bunny:
             cursor = self.__connection__.cursor()
             try:
                 cursor.execute(sql)
+                self.__connection__.commit()
                 cursor.close()
                 return True
             except Exception:
