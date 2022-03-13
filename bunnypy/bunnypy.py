@@ -7,7 +7,7 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -92,7 +92,8 @@ class Bunny:
 
     def run(self):
         httpd = make_server(self.__host__, self.__port__, self.handler)
-        print(__running_msg__.format(__version__, self.__host__, self.__port__))
+        _tmp_host = '127.0.0.1' if self.__host__ == '0.0.0.0' else self.__host__
+        print(__running_msg__.format(__version__, _tmp_host, self.__port__))
         httpd.serve_forever()
 
     def __call_action__(self, req, name, action):
