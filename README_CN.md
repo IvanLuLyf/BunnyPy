@@ -1,7 +1,7 @@
 # BunnyPy
 轻量级的Python Web框架
 
-![BunnyPy](bunny.png?raw=true)
+![BunnyPy](logo.png?raw=true)
 
 [![PyPI](https://img.shields.io/pypi/v/bunnypy.svg?style=flat-square)](https://pypi.org/project/BunnyPy/)
 [![Downloads](https://img.shields.io/pypi/dm/bunnypy.svg?color=brightgreen&style=flat-square)](https://pypi.org/project/BunnyPy/)

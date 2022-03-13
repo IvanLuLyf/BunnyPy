@@ -12,7 +12,7 @@ __version__ = "0.2.7"
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
 <a href="https://github.com/IvanLuLyf/BunnyPy">
-<img src="https://github.com/IvanLuLyf/BunnyPy/raw/master/bunny.png?raw=true" width="400px" style="margin-top: 150px">
+<img src="https://github.com/IvanLuLyf/BunnyPy/raw/master/logo.png?raw=true" width="400px" style="margin-top: 150px">
 </a>
 <h1>Welcome to <a href="https://github.com/IvanLuLyf/BunnyPy">BunnyPy</a>!</h1>
 <p>If you see this page, the BunnyPy is successfully working.</p>
