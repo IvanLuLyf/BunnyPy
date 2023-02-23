@@ -1,13 +1,13 @@
+import json
 import os
 import re
 import traceback
-import json
-from pathlib import Path
 from html import escape
-from urllib.parse import parse_qs, unquote
+from pathlib import Path
+from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.8"
+__version__ = "0.2.9"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -42,13 +42,14 @@ class Bunny:
     request_method = 'GET'
 
     def handler(self, environ, start_response):
+        if callable(self.__cors__):
+            cors_conf = self.__cors__(environ)
+        else:
+            cors_conf = {}
+        allowed_origin = cors_conf['origins'] if 'origins' in cors_conf else ''
         if environ['REQUEST_METHOD'] == 'OPTIONS' and 'HTTP_ACCESS_CONTROL_REQUEST_METHOD' in environ:
-            if callable(self.__cors__):
-                __cors_info__ = self.__cors__(environ)
-            else:
-                __cors_info__ = {}
             start_response('200 OK', [
-                ('Access-Control-Allow-Origin', __cors_info__['origins'] if 'origins' in __cors_info__ else ''),
+                ('Access-Control-Allow-Origin', allowed_origin),
                 ('Access-Control-Allow-Methods', __def_allowed_methods__),
                 ('Access-Control-Allow-Headers', __def_allowed_headers__),
                 ('Access-Control-Max-Age', '86400')
@@ -61,7 +62,8 @@ class Bunny:
                     data = static_file.read()
             except FileNotFoundError:
                 data = self.__render_error('404 Not Found')
-            start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+            start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
+                                      ('Content-Type', 'text/html;charset=utf-8')])
             return [data]
         url_array = environ['PATH_INFO'].split('/')
         if url_array[1] == '':
