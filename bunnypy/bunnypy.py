@@ -7,7 +7,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.9"
+__version__ = "0.3.0"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -76,13 +76,16 @@ class Bunny:
             req = self.Request(environ)
             response = self.__call_action__(req, url_array[1], action)
             if type(response) == dict or type(response) == list:
-                start_response('200 OK', [('Content-Type', 'application/json;charset=utf-8')])
+                start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
+                                          ('Content-Type', 'application/json;charset=utf-8')])
                 return [json.dumps(response).encode('utf-8')]
             else:
-                start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+                start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
+                                          ('Content-Type', 'text/html;charset=utf-8')])
                 return [response.encode('utf-8')]
         else:
-            start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
+            start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
+                                      ('Content-Type', 'text/html;charset=utf-8')])
             return [__default_html__.encode('utf-8')]
 
     def __init__(self, host='127.0.0.1', port=8000, database=None, cors=None):
