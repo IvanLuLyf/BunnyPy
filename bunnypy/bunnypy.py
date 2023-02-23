@@ -7,7 +7,7 @@ from html import escape
 from urllib.parse import parse_qs, unquote
 from wsgiref.simple_server import make_server
 
-__version__ = "0.2.7"
+__version__ = "0.2.8"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -32,6 +32,8 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
 '''
 
 __asset_dir__ = os.path.dirname(os.path.abspath(__file__)) + '/asset/'
+__def_allowed_methods__ = ', '.join(['GET', 'POST', 'PUT', 'DELETE'])
+__def_allowed_headers__ = ', '.join(['Content-Type', 'Authorization'])
 
 
 class Bunny:
@@ -40,6 +42,18 @@ class Bunny:
     request_method = 'GET'
 
     def handler(self, environ, start_response):
+        if environ['REQUEST_METHOD'] == 'OPTIONS' and 'HTTP_ACCESS_CONTROL_REQUEST_METHOD' in environ:
+            if callable(self.__cors__):
+                __cors_info__ = self.__cors__(environ)
+            else:
+                __cors_info__ = {}
+            start_response('200 OK', [
+                ('Access-Control-Allow-Origin', __cors_info__['origins'] if 'origins' in __cors_info__ else ''),
+                ('Access-Control-Allow-Methods', __def_allowed_methods__),
+                ('Access-Control-Allow-Headers', __def_allowed_headers__),
+                ('Access-Control-Max-Age', '86400')
+            ])
+            return []
         file_path = Path("static" + environ['PATH_INFO'])
         if file_path.is_file():
             try:
@@ -69,11 +83,13 @@ class Bunny:
             start_response('200 OK', [('Content-Type', 'text/html;charset=utf-8')])
             return [__default_html__.encode('utf-8')]
 
-    def __init__(self, host='127.0.0.1', port=8000, database=None):
+    def __init__(self, host='127.0.0.1', port=8000, database=None, cors=None):
         self.__host__ = host
         self.__port__ = port
         if isinstance(database, self.Database):
             self.__database__ = database
+        if callable(cors):
+            self.__cors__ = cors
 
     def sub_app(self, app_path, app_module):
         pass
