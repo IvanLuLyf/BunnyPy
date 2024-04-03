@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
-__version__ = "0.3.1"
+__version__ = "0.3.2"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -32,9 +32,14 @@ Running on http://{1}:{2}/ (Press CTRL+C to quit)
 
 '''
 
-__asset_dir__ = os.path.dirname(os.path.abspath(__file__)) + '/asset/'
-__def_allowed_methods__ = ', '.join(['GET', 'POST', 'PUT', 'DELETE'])
-__def_allowed_headers__ = ', '.join(['Content-Type', 'Authorization'])
+__ASSET_DIR__ = os.path.dirname(os.path.abspath(__file__)) + '/asset/'
+__ALLOWED_METHODS__ = ', '.join(['GET', 'POST', 'PUT', 'DELETE'])
+__ALLOWED_HEADERS__ = ', '.join(['Content-Type', 'Authorization'])
+__MIME_HEADERS__ = {
+    'html': ('Content-Type', 'text/html;charset=utf-8'),
+    'json': ('Content-Type', 'application/json;charset=utf-8'),
+    'sse': ('Content-Type', 'text/event-stream;charset=utf-8'),
+}
 
 
 class Bunny:
@@ -48,12 +53,12 @@ class Bunny:
             cors_conf = self.__cors__(environ)
         else:
             cors_conf = {}
-        allowed_origin = cors_conf['origins'] if 'origins' in cors_conf else ''
+        allowed_origin = ('Access-Control-Allow-Origin', cors_conf['origins'] if 'origins' in cors_conf else '')
         if environ['REQUEST_METHOD'] == 'OPTIONS' and 'HTTP_ACCESS_CONTROL_REQUEST_METHOD' in environ:
             start_response('200 OK', [
-                ('Access-Control-Allow-Origin', allowed_origin),
-                ('Access-Control-Allow-Methods', __def_allowed_methods__),
-                ('Access-Control-Allow-Headers', __def_allowed_headers__),
+                allowed_origin,
+                ('Access-Control-Allow-Methods', __ALLOWED_METHODS__),
+                ('Access-Control-Allow-Headers', __ALLOWED_HEADERS__),
                 ('Access-Control-Max-Age', '86400')
             ])
             return []
@@ -64,9 +69,9 @@ class Bunny:
                     data = static_file.read()
             except FileNotFoundError:
                 data = self.__render_error('404 Not Found')
-            start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
-                                      ('Content-Type', 'text/html;charset=utf-8')])
-            return [data]
+            start_response('200 OK', [allowed_origin, __MIME_HEADERS__['html']])
+            yield data
+            return []
         url_array = environ['PATH_INFO'].split('/')
         if url_array[1] == '':
             url_array[1] = 'index'
@@ -78,22 +83,18 @@ class Bunny:
             req = self.Request(environ)
             response = self.__call_action__(req, url_array[1], action)
             if isinstance(response, dict) or isinstance(response, list):
-                start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
-                                          ('Content-Type', 'application/json;charset=utf-8')])
-                return [json.dumps(response).encode('utf-8')]
+                start_response('200 OK', [allowed_origin, __MIME_HEADERS__['json']])
+                yield json.dumps(response).encode('utf-8')
             elif isinstance(response, types.GeneratorType):
-                start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
-                                          ('Content-Type', 'text/event-stream;charset=utf-8')])
+                start_response('200 OK', [allowed_origin, __MIME_HEADERS__['sse']])
                 for chunk in response:
                     yield f'data: {chunk}\n\n'.encode('utf-8')
             else:
-                start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
-                                          ('Content-Type', 'text/html;charset=utf-8')])
-                return [response.encode('utf-8')]
+                start_response('200 OK', [allowed_origin, __MIME_HEADERS__['html']])
+                yield response.encode('utf-8')
         else:
-            start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
-                                      ('Content-Type', 'text/html;charset=utf-8')])
-            return [__default_html__.encode('utf-8')]
+            start_response('200 OK', [allowed_origin, __MIME_HEADERS__['html']])
+            yield __default_html__.encode('utf-8')
 
     def __init__(self, host='127.0.0.1', port=8000, database=None, cors=None):
         self.__host__ = host
@@ -177,7 +178,7 @@ class Bunny:
     def __render_error(self, msg, err_trace=None):
         return self.TemplateRender('error.html', {
             'bunny_error': msg, 'bunny_error_trace': err_trace
-        }, __asset_dir__).render()
+        }, __ASSET_DIR__).render()
 
     class Request:
         def __init__(self, environ):
