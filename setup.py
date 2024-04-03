@@ -18,7 +18,7 @@ setup(
     # py_modules=['bunnypy'],
     # scripts=['bunnypy/bunnypy.py'],
     include_package_data=True,
-    # package_data={'bunnypy/asset': ['asset/*.html']},
+    package_data={'bunnypy.asset': ['asset/*.html']},
     license='MIT',
     platforms='any',
     classifiers=['Operating System :: OS Independent',
