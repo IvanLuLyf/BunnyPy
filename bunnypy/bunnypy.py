@@ -2,12 +2,13 @@ import json
 import os
 import re
 import traceback
+import types
 from html import escape
 from pathlib import Path
 from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -39,6 +40,7 @@ __def_allowed_headers__ = ', '.join(['Content-Type', 'Authorization'])
 class Bunny:
     __sub_apps__ = {}
     __controllers__ = {}
+    __cors__ = None
     request_method = 'GET'
 
     def handler(self, environ, start_response):
@@ -75,10 +77,15 @@ class Bunny:
                 action = 'index'
             req = self.Request(environ)
             response = self.__call_action__(req, url_array[1], action)
-            if type(response) == dict or type(response) == list:
+            if isinstance(response, dict) or isinstance(response, list):
                 start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
                                           ('Content-Type', 'application/json;charset=utf-8')])
                 return [json.dumps(response).encode('utf-8')]
+            elif isinstance(response, types.GeneratorType):
+                start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
+                                          ('Content-Type', 'text/event-stream;charset=utf-8')])
+                for chunk in response:
+                    yield f'data: {chunk}\n\n'.encode('utf-8')
             else:
                 start_response('200 OK', [('Access-Control-Allow-Origin', allowed_origin),
                                           ('Content-Type', 'text/html;charset=utf-8')])
