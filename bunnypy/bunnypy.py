@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import parse_qs
 from wsgiref.simple_server import make_server
 
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 __default_html__ = '''<html lang="en"><head><meta charset="utf-8"><title>Welcome to BunnyPy</title>
 <style>body{width: 35em;margin: 0 auto;text-align: center;}</style></head><body>
@@ -143,17 +143,24 @@ class Bunny:
     def __call_func__(self, func, req):
         try:
             args = []
-            for i in range(func.__code__.co_argcount):
+            argc = func.__code__.co_argcount
+            defs = func.__defaults__
+            def_start = argc - len(defs)
+            for i in range(argc):
                 vn = func.__code__.co_varnames[i]
+                dv = defs[i - def_start] if i >= def_start else None
                 if vn in func.__annotations__:
-                    if func.__annotations__[vn] == self.Request:
+                    vc = func.__annotations__[vn]
+                    if vc == self.Request:
                         args.append(req)
-                    elif func.__annotations__[vn] == int:
-                        args.append(int(req[vn]))
+                    elif vc == int or vc == float:
+                        vv = req[vn]
+                        args.append(vc(vv) if vv is not None else dv)
                 elif vn == 'self':
                     continue
                 else:
-                    args.append(req[vn])
+                    vv = req[vn]
+                    args.append(vv if vv is not None else dv)
             return func(*args)
         except Exception as e:
             err_trace = []
